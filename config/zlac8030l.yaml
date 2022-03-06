@@ -1,0 +1,21 @@
+# ROS parameters for the ZLAC8030L motor driver
+
+# CAN bus interface, e.g. can0, can1
+can_channel: "can0"
+
+bus_type: "socketcan_ctypes"
+
+# CAN bus bitrate in bits per second
+bitrate: 500000
+
+eds_file: "/root/shared_volume/catkin_ws/src/zlac8030l_ros/config/eds/ZLAC8030L-V1.0.eds"
+
+# Wheel radius [meters]
+wheel_radius: 0.194
+
+# CAN node ID for front left wheel
+wheel_ids:
+  - front_left: 1
+  - back_left: 2
+  - front_right: 3
+  - back right: 4
