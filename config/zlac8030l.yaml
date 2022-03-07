@@ -1,5 +1,8 @@
 # ROS parameters for the ZLAC8030L motor driver
 
+# ROS loop rate [Hz]
+loop_rate: 100.0
+
 # CAN bus interface, e.g. can0, can1
 can_channel: "can0"
 
@@ -13,9 +16,25 @@ eds_file: "/root/shared_volume/catkin_ws/src/zlac8030l_ros/config/eds/ZLAC8030L-
 # Wheel radius [meters]
 wheel_radius: 0.194
 
+# Track width [meters]
+track_width: 0.8
+
 # CAN node ID for front left wheel
 wheel_ids:
   - front_left: 1
   - back_left: 2
   - front_right: 3
   - back right: 4
+
+# Maximum forward/backward speed [m/s]
+max_vx: 2.0
+
+# Maximum angular velocity [rad/s]
+max_w: 1.57
+
+odom_frame: "odom_link"
+robot_frame: "base_link"
+
+# Velocity command timeout [seconds], after which target velocity will be set to zero
+# To avoid undesired motion
+cmd_timeout: 0.2

@@ -31,11 +31,14 @@ import time
 
 class DiffDrive:
     """Differential drive kinematics for 4-wheel robot
+    Ref 1: https://husarion.com/tutorials/ros-tutorials/3-simple-kinematics-for-mobile-robot/
+    Ref 2: http://matwbn.icm.edu.pl/ksiazki/amc/amc14/amc1445.pdf
+    Ref 3: https://github.com/TiderFang/motor_control_bus/blob/master/diff_car_controller/scripts/car_server.py
     """
 
     def __init__(self, wheel_radius, track_width):
         self._wheel_radius = wheel_radius
-        self._half_track_width = 0.5*track_width  # Distance between right and left wheels, in this implementation we use half of it
+        self._track_width = track_width 
         self._odom = {'x':0,'y':0,'yaw':0,'x_dot':0,'y_dot':0,'v':0,'w':0}
 
         self._fl_pos = 0 # Front left encoder position
@@ -47,7 +50,7 @@ class DiffDrive:
         self._br_vel = 0
         self._fr_vel = 0
 
-    def calWheelVel(self,v,w):
+    def calcWheelVel(self,v,w):
         """Calculates the left and right wheel speeds in rad/s from vx and w
 
         Parameters
@@ -60,8 +63,8 @@ class DiffDrive:
         @return wl Left wheel velocity in rad/s
         @return wr Right wheel velocity in rad/s
         """
-        wr = 1/self._wheel_radius *(v + w * self._track_width)
-        wl = 1/self._wheel_radius *(v - w * self._track_width)
+        wr = 1/self._wheel_radius *(v + w * self._track_width/2)
+        wl = 1/self._wheel_radius *(v - w * self._track_width/2)
         return (wl,wr)
   
     def calcRobotOdom(self, dt):
@@ -71,16 +74,6 @@ class DiffDrive:
         --
         @param dt time stamp in seconds
         """
-        # Calculate the virtual left and right wheel angular position and velocity
-        a1 = self._can_net.getEncoder(1) # These are the actual wheel positions for the robot starting from the front left 
-        a2 = self._can_net.getEncoder(2) # These are the actual wheel positions for the robot starting from the rear left 
-        a3 = self._can_net.getEncoder(3) # These are the actual wheel positions for the robot starting from the rear right
-        a4 = self._can_net.getEncoder(4) # These are the actual wheel positions for the robot starting from the front right  
-
-        w1 = self._can_net.getVelocity(1) # These are the current wheel velocity for the robot starting from the front left
-        w2 = self._can_net.getVelocity(2) # These are the current wheel velocity for the robot starting from the rear left
-        w3 = self._can_net.getVelocity(3) # These are the current wheel velocity for the robot starting from the rear right
-        w4 = self._can_net.getVelocity(4) # These are the current wheel velocity for the robot starting from the front right
 
         # TODO Do we even need this?
         angular_pos_l = (self._fl_pos + self._bl_pos)/2
@@ -89,23 +82,33 @@ class DiffDrive:
         wl = (self._fl_vel + self._bl_vel)/2
         wr = (self._br_vel + self._fr_vel)/2
 
-        angular_pos = (angular_pos_r - angular_pos_l)*self._wheel_radius/(2*self._half_track_width)
+        # angular_pos = (angular_pos_r - angular_pos_l)*self._wheel_radius/self._track_width
 
 
 
-        angular_vel = self._wheel_radius/(2*self._half_track_width) * (wr - wl)
+        angular_vel = self._wheel_radius/self._track_width * (wr - wl)
         linear_vel = (self._wheel_radius/2)*(wr + wl)
+
+        angular_pos = self.odom['yaw'] + angular_vel * dt
 
 
         x_dot = linear_vel * cos(angular_pos)
         y_dot = linear_vel * sin(angular_pos)
 
-        self.odom['x']= self.odom['x'] + dt* x_dot
-        self.odom['y']= self.odom['y'] + dt* y_dot
+        # Update odometry
+        self._odom['x']= self._odom['x'] + dt* x_dot
+        self._odom['y']= self._odom['y'] + dt* y_dot
+        self._odom['yaw'] = angular_pos
 
-        self.odom['x_dot'] = x_dot
-        self.odom['y_dot'] = y_dot
+        self._odom['x_dot'] = x_dot
+        self._odom['y_dot'] = y_dot
 
-        self.odom['v'] = linear_vel
-        self.odom['w'] = angular_vel
-        self.odom['yaw'] = angular_pos
+        self._odom['v'] = linear_vel
+        self._odom['w'] = angular_vel
+
+        return self._odom
+
+    def resetOdom(self):
+        """Reset Odom to origin
+        """
+        self._odom = {'x':0,'y':0,'yaw':0,'x_dot':0,'y_dot':0,'v':0,'w':0}
