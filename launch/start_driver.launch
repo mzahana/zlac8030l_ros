@@ -1,0 +1,8 @@
+<launch>
+    <!--
+        Start the driver_node.py
+    -->
+    <node name="driver_node" pkg="zlac8030l_ros" type="driver_node.py" respawn="true" clear_params="true" >
+        <rosparam command="load" file="$(find zlac8030l_ros)/config/zlac8030l.yaml" />
+    </node>
+</launch>
