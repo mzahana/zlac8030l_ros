@@ -17,7 +17,7 @@ eds_file: "/root/shared_volume/catkin_ws/src/zlac8030l_ros/config/eds/ZLAC8030L-
 wheel_radius: 0.194
 
 # Track width [meters]
-track_width: 0.8
+track_width: 0.6405
 
 # CAN node ID for front left wheel
 wheel_ids:
@@ -36,5 +36,5 @@ odom_frame: "odom_link"
 robot_frame: "base_link"
 
 # Velocity command timeout [seconds], after which target velocity will be set to zero
-# To avoid undesired motion
+# To avoid undesired/unattended motion
 cmd_timeout: 0.2

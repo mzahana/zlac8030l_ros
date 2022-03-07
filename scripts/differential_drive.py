@@ -68,7 +68,7 @@ class DiffDrive:
         return (wl,wr)
   
     def calcRobotOdom(self, dt):
-        """calculates vx and w from the left and right wheel speeds in rad/s
+        """calculates linear and angular states from the left and right wheel speeds
 
         Parameters
         --
