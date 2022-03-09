@@ -89,7 +89,7 @@ class DiffDrive:
         angular_vel = self._wheel_radius/self._track_width * (wr - wl)
         linear_vel = (self._wheel_radius/2)*(wr + wl)
 
-        angular_pos = self.odom['yaw'] + angular_vel * dt
+        angular_pos = self._odom['yaw'] + angular_vel * dt
 
 
         x_dot = linear_vel * cos(angular_pos)
