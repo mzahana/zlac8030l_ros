@@ -197,6 +197,9 @@ class Driver:
                     self._network.setVelocity(node_id=self._wheel_ids["fr"], vel=0)
                 except Exception as e:
                     rospy.logerr_throttle(1, "[mainLoop] Error in setting wheel velocity: %s", e)
+
+            # Publish wheel odom
+            self.pubOdom()
             rate.sleep()
   
 
