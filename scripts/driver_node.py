@@ -125,9 +125,9 @@ class Driver:
         # Send target velocity to the controller
         try:
             self._network.setVelocity(node_id=self._wheel_ids["fl"], vel=wl_rpm * self._flip_direction[self._wheel_ids["fl"]])
-            self._network.setVelocity(node_id=self._wheel_ids["bl"], vel=wl_rpm** self._flip_direction[self._wheel_ids["bl"]])
-            self._network.setVelocity(node_id=self._wheel_ids["br"], vel=wr_rpm** self._flip_direction[self._wheel_ids["br"]])
-            self._network.setVelocity(node_id=self._wheel_ids["fr"], vel=wr_rpm** self._flip_direction[self._wheel_ids["fr"]])
+            self._network.setVelocity(node_id=self._wheel_ids["bl"], vel=wl_rpm * self._flip_direction[self._wheel_ids["bl"]])
+            self._network.setVelocity(node_id=self._wheel_ids["br"], vel=wr_rpm * self._flip_direction[self._wheel_ids["br"]])
+            self._network.setVelocity(node_id=self._wheel_ids["fr"], vel=wr_rpm * self._flip_direction[self._wheel_ids["fr"]])
         except Exception as e:
             rospy.logerr_throttle(1, "Error in setting wheel velocity: %s", e)
 
