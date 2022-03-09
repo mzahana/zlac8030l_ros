@@ -180,7 +180,7 @@ class Driver:
             self._vel_pub.publish(msg)
         except :
             rospy.logerr_throttle(1, "Error in pubOdom: check if all 4 motors are connected")
-            rospy.logerr_throttle(1, "Availabled nodes = %s", self._network._network.scanner.nodeslogerr_throttle)
+            rospy.logerr_throttle(1, "Availabled nodes = %s", self._network._network.scanner.nodes)
 
     def mainLoop(self):
         rate = rospy.Rate(self._loop_rate)
