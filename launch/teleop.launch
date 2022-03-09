@@ -1,0 +1,13 @@
+<launch>
+    <!-- 
+        Bring up teleop using Logitech joystick
+     -->
+     <node pkg="joy" type="joy_node" name="joy_node" >
+        <rosparam command="load" file="$(find zlac8030l_ros)/config/logitech.yaml"/>
+     </node>
+
+    <node pkg="teleop_twist_joy" type="teleop_node" name="teleop_twist_joy">
+        <rosparam command="load" file="$(find zlac8030l_ros)/config/teleop.yaml"/>
+    </node>
+
+</launch>
