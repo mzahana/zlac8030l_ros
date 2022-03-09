@@ -99,8 +99,8 @@ class Driver:
     def cmdVelCallback(self, msg):
         self._last_cmd_t = time()
 
-        sign_x = msg.linear.x/abs(msg.linear.x)
-        sign_w = msg.angular.z/abs(msg.angular.z)
+        sign_x = -1 if msg.linear.x <0 else 1
+        sign_w = -1 if msg.angular.z <0 else 1
         
         vx = msg.linear.x
         w = msg.angular.z
