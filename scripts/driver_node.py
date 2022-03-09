@@ -131,56 +131,56 @@ class Driver:
     def pubOdom(self):
         """Computes & publishes odometry msg
         """
-        try:
-            v_dict = self._network.getVelocity(node_id=self._wheel_ids["fl"])
-            vel = v_dict['value']
-            self._diff_drive._fl_vel = self.rpmToRps(vel)
+        # try:
+        v_dict = self._network.getVelocity(node_id=self._wheel_ids["fl"])
+        vel = v_dict['value']
+        self._diff_drive._fl_vel = self.rpmToRps(vel)
 
-            v_dict = self._network.getVelocity(node_id=self._wheel_ids["bl"])
-            vel = v_dict['value']
-            self._diff_drive._bl_vel = self.rpmToRps(vel)
+        v_dict = self._network.getVelocity(node_id=self._wheel_ids["bl"])
+        vel = v_dict['value']
+        self._diff_drive._bl_vel = self.rpmToRps(vel)
 
-            v_dict = self._network.getVelocity(node_id=self._wheel_ids["br"])
-            vel = v_dict['value']
-            self._diff_drive._br_vel = self.rpmToRps(vel)
-            
-            v_dict = self._network.getVelocity(node_id=self._wheel_ids["fr"])
-            vel = v_dict['value']
-            self._diff_drive._fr_vel = self.rpmToRps(vel)
+        v_dict = self._network.getVelocity(node_id=self._wheel_ids["br"])
+        vel = v_dict['value']
+        self._diff_drive._br_vel = self.rpmToRps(vel)
+        
+        v_dict = self._network.getVelocity(node_id=self._wheel_ids["fr"])
+        vel = v_dict['value']
+        self._diff_drive._fr_vel = self.rpmToRps(vel)
 
-            now = time()
+        now = time()
 
-            dt= now - self._last_odom_dt
-            self._last_odom_dt = now
+        dt= now - self._last_odom_dt
+        self._last_odom_dt = now
 
-            odom = self._diff_drive.calcRobotOdom(dt)
+        odom = self._diff_drive.calcRobotOdom(dt)
 
-            msg = Odometry()
+        msg = Odometry()
 
-            time_stamp = rospy.Time.now()
-            msg.header.stamp = time_stamp
+        time_stamp = rospy.Time.now()
+        msg.header.stamp = time_stamp
 
-            msg.pose.pose.position.x = odom["x"]
-            msg.pose.pose.position.y = odom["y"]
-            msg.pose.pose.position.z = 0.0
-            odom_quat = tf.transformations.quaternion_from_euler(0, 0, odom['yaw'])
-            msg.pose.pose.orientation.x = odom_quat[0]
-            msg.pose.pose.orientation.y = odom_quat[1]
-            msg.pose.pose.orientation.z = odom_quat[2]
-            msg.pose.pose.orientation.w = odom_quat[3]
-            msg.twist.twist.linear.x = odom['x_dot']
-            msg.twist.twist.linear.y = odom['y_dot']
-            msg.twist.twist.angular.z = odom['w']
-            self._odom_pub.publish(msg)
-            # Send TF
-            self._tf_br.sendTransform((odom['x'],odom['y'],0),odom_quat,time_stamp,self._robot_frame,self._odom_frame)
+        msg.pose.pose.position.x = odom["x"]
+        msg.pose.pose.position.y = odom["y"]
+        msg.pose.pose.position.z = 0.0
+        odom_quat = tf.transformations.quaternion_from_euler(0, 0, odom['yaw'])
+        msg.pose.pose.orientation.x = odom_quat[0]
+        msg.pose.pose.orientation.y = odom_quat[1]
+        msg.pose.pose.orientation.z = odom_quat[2]
+        msg.pose.pose.orientation.w = odom_quat[3]
+        msg.twist.twist.linear.x = odom['x_dot']
+        msg.twist.twist.linear.y = odom['y_dot']
+        msg.twist.twist.angular.z = odom['w']
+        self._odom_pub.publish(msg)
+        # Send TF
+        self._tf_br.sendTransform((odom['x'],odom['y'],0),odom_quat,time_stamp,self._robot_frame,self._odom_frame)
 
-            msg = Float64()
-            msg.data = odom["v"] # Forward velocity
-            self._vel_pub.publish(msg)
-        except :
-            rospy.logerr_throttle(1, "Error in pubOdom: check if all 4 motors are connected")
-            rospy.logerr_throttle(1, "Availabled nodes = %s", self._network._network.scanner.nodes)
+        msg = Float64()
+        msg.data = odom["v"] # Forward velocity
+        self._vel_pub.publish(msg)
+        # except :
+        #     rospy.logerr_throttle(1, "Error in pubOdom: check if all 4 motors are connected")
+        #     rospy.logerr_throttle(1, "Availabled nodes = %s", self._network._network.scanner.nodes)
 
     def mainLoop(self):
         rate = rospy.Rate(self._loop_rate)
