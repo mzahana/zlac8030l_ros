@@ -47,7 +47,7 @@ class Driver:
         self._eds_file = rospy.get_param("~eds_file","")
         # self._wheel_ids = rospy.get_param("~wheel_ids", []) # TODO needs checking
         self._wheel_ids = {"fl":1, "bl":2, "br":3, "fr":4}
-        self._flip_direction = {self._wheel_ids["fl"]: -1, self._wheel_ids["bl"]:-1, self._wheel_ids["br"]:1, self._wheel_ids["fr"]:1}
+        self._flip_direction = {self._wheel_ids["fl"]: -1, self._wheel_ids["bl"]: -1, self._wheel_ids["br"]: 1, self._wheel_ids["fr"]: 1}
         
         self._wheel_radius = rospy.get_param("~wheel_radius", 0.194)
 
