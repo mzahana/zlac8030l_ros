@@ -40,7 +40,7 @@ from ZLAC8030L_CAN_controller.canopen_controller import MotorController
 from differential_drive import DiffDrive
 
 class Driver:
-    def __init__(self) -> None:
+    def __init__(self):
         self._can_channel = rospy.get_param("~can_channel", "can0")
         self._bus_type = rospy.get_param("~bus_type", "socketcan")
         self._bitrate = rospy.get_param("~bitrate", 500000)
