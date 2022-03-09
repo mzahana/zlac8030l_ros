@@ -201,9 +201,9 @@ class Driver:
   
 
 if __name__ == "__main__":
+    rospy.init_node("** Motor driver node started ** \n",anonymous=True)
     try:
         driver = Driver()
-        rospy.init_node("** Motor driver node started ** \n",anonymous=True)
 
         driver.mainLoop()
     except rospy.ROSInterruptException:
