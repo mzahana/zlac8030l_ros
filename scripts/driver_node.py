@@ -47,6 +47,7 @@ class Driver:
         self._eds_file = rospy.get_param("~eds_file","")
         # self._wheel_ids = rospy.get_param("~wheel_ids", []) # TODO needs checking
         self._wheel_ids = {"fl":1, "bl":2, "br":3, "fr":4}
+        self._flip_direction = {self._wheel_ids["fl"]: -1, self._wheel_ids["bl"]:-1, self._wheel_ids["br"]:1, self._wheel_ids["fr"]:1}
         
         self._wheel_radius = rospy.get_param("~wheel_radius", 0.194)
 
@@ -90,6 +91,8 @@ class Driver:
         # TF broadcaster
         self._tf_br = tf.TransformBroadcaster()
 
+        rospy.loginfo("** Driver initialization is done **\n")
+
     def rpmToRps(self, rpm):
         return rpm / 9.5493
 
@@ -121,10 +124,10 @@ class Driver:
 
         # Send target velocity to the controller
         try:
-            self._network.setVelocity(node_id=self._wheel_ids["fl"], vel=wl_rpm)
-            self._network.setVelocity(node_id=self._wheel_ids["bl"], vel=wl_rpm)
-            self._network.setVelocity(node_id=self._wheel_ids["br"], vel=wr_rpm)
-            self._network.setVelocity(node_id=self._wheel_ids["fr"], vel=wr_rpm)
+            self._network.setVelocity(node_id=self._wheel_ids["fl"], vel=wl_rpm * self._flip_direction[self._wheel_ids["fl"]])
+            self._network.setVelocity(node_id=self._wheel_ids["bl"], vel=wl_rpm** self._flip_direction[self._wheel_ids["bl"]])
+            self._network.setVelocity(node_id=self._wheel_ids["br"], vel=wr_rpm** self._flip_direction[self._wheel_ids["br"]])
+            self._network.setVelocity(node_id=self._wheel_ids["fr"], vel=wr_rpm** self._flip_direction[self._wheel_ids["fr"]])
         except Exception as e:
             rospy.logerr_throttle(1, "Error in setting wheel velocity: %s", e)
 
@@ -133,19 +136,19 @@ class Driver:
         """
         try:
             v_dict = self._network.getVelocity(node_id=self._wheel_ids["fl"])
-            vel = v_dict['value']
+            vel = v_dict['value']* self._flip_direction[self._wheel_ids["fl"]]
             self._diff_drive._fl_vel = self.rpmToRps(vel)
 
             v_dict = self._network.getVelocity(node_id=self._wheel_ids["bl"])
-            vel = v_dict['value']
+            vel = v_dict['value']* self._flip_direction[self._wheel_ids["bl"]]
             self._diff_drive._bl_vel = self.rpmToRps(vel)
 
             v_dict = self._network.getVelocity(node_id=self._wheel_ids["br"])
-            vel = v_dict['value']
+            vel = v_dict['value']* self._flip_direction[self._wheel_ids["br"]]
             self._diff_drive._br_vel = self.rpmToRps(vel)
             
             v_dict = self._network.getVelocity(node_id=self._wheel_ids["fr"])
-            vel = v_dict['value']
+            vel = v_dict['value']* self._flip_direction[self._wheel_ids["fr"]]
             self._diff_drive._fr_vel = self.rpmToRps(vel)
 
             now = time()
