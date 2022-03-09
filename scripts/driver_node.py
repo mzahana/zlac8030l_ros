@@ -132,10 +132,21 @@ class Driver:
         """Computes & publishes odometry msg
         """
         try:
-            self._diff_drive._fl_vel = self.rpmToRps( self._network.getVelocity(node_id=self._wheel_ids["fl"]))
-            self._diff_drive._bl_vel = self.rpmToRps(self._network.getVelocity(node_id=self._wheel_ids["bl"]))
-            self._diff_drive._br_vel = self.rpmToRps(self._network.getVelocity(node_id=self._wheel_ids["br"]))
-            self._diff_drive._fr_vel = self.rpmToRps(self._network.getVelocity(node_id=self._wheel_ids["fr"]))
+            v_dict = self._network.getVelocity(node_id=self._wheel_ids["fl"])
+            vel = v_dict['value']
+            self._diff_drive._fl_vel = self.rpmToRps(vel)
+
+            v_dict = self._network.getVelocity(node_id=self._wheel_ids["bl"])
+            vel = v_dict['value']
+            self._diff_drive._bl_vel = self.rpmToRps(vel)
+
+            v_dict = self._network.getVelocity(node_id=self._wheel_ids["br"])
+            vel = v_dict['value']
+            self._diff_drive._br_vel = self.rpmToRps(vel)
+            
+            v_dict = self._network.getVelocity(node_id=self._wheel_ids["fr"])
+            vel = v_dict['value']
+            self._diff_drive._fr_vel = self.rpmToRps(vel)
 
             now = time()
 
@@ -149,7 +160,6 @@ class Driver:
             time_stamp = rospy.Time.now()
             msg.header.stamp = time_stamp
 
-            {'x':0,'y':0,'yaw':0,'x_dot':0,'y_dot':0,'v':0,'w':0}
             msg.pose.pose.position.x = odom["x"]
             msg.pose.pose.position.y = odom["y"]
             msg.pose.pose.position.z = 0.0
@@ -186,7 +196,7 @@ class Driver:
                     self._network.setVelocity(node_id=self._wheel_ids["br"], vel=0)
                     self._network.setVelocity(node_id=self._wheel_ids["fr"], vel=0)
                 except Exception as e:
-                    rospy.logerr_throttle(1, "Error in setting wheel velocity: %s", e)
+                    rospy.logerr_throttle(1, "[mainLoop] Error in setting wheel velocity: %s", e)
             rate.sleep()
   
 
