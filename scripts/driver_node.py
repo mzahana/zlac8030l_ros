@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 BSD 3-Clause License
 Copyright (c) 2022, Mohamed Abdelkader Zahana
