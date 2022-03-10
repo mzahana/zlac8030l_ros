@@ -2,8 +2,10 @@
     <!-- 
         Bring up teleop using Logitech joystick
      -->
+     <arg  name="joy_yaml" default="$(env JOYSTICK_YAML)"/>
+     <arg  name="teleop_yaml" default="$(env TELEOP_YAML)"/>
      <node pkg="joy" type="joy_node" name="joy_node" >
-        <rosparam command="load" file="$(find zlac8030l_ros)/config/logitech.yaml"/>
+        <rosparam command="load" file="$(arg joy_yaml)"/>
      </node>
 
     <node pkg="teleop_twist_joy" type="teleop_node" name="teleop_twist_joy">
