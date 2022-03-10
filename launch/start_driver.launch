@@ -3,7 +3,7 @@
         Start the driver_node.py
     -->
     <arg name="driver_yaml" default="$(env ZLAC_YAML)"/>
-    <node name="driver_node" pkg="zlac8030l_ros" type="driver_node.py" respawn="false" clear_params="true" >
+    <node name="driver_node" pkg="zlac8030l_ros" type="driver_node.py" respawn="true" clear_params="true" >
         <rosparam command="load" file="$(arg driver_yaml)" />
     </node>
 </launch>
