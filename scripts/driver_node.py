@@ -38,6 +38,7 @@ from std_msgs.msg import Float64
 from nav_msgs.msg import Odometry
 from ZLAC8030L_CAN_controller.canopen_controller import MotorController
 from differential_drive import DiffDrive
+from zlac8030l_ros.msg import State
 
 class Driver:
     def __init__(self):
@@ -85,6 +86,11 @@ class Driver:
         # ------------------- Publishers ----------------#
         self._odom_pub = rospy.Publisher("odom", Odometry, queue_size=10)
         self._vel_pub = rospy.Publisher("forward_vel", Float64, queue_size=10)
+
+        self._fr_state_pub = rospy.Publisher("front_right_motor/state", State, queue_size=10)
+        self._br_state_pub = rospy.Publisher("back_right_motor/state", State, queue_size=10)
+        self._fl_state_pub = rospy.Publisher("front_left_motor/state", State, queue_size=10)
+        self._bl_state_pub = rospy.Publisher("back_left_motor/state", State, queue_size=10)
 
         # ------------------- Services ----------------#
 
@@ -185,6 +191,116 @@ class Driver:
             rospy.logerr_throttle(1, "Error in pubOdom: check if all 4 motors are connected")
             rospy.logerr_throttle(1, "Availabled nodes = %s", self._network._network.scanner.nodes)
 
+    def pubMotorState(self):
+        # Front right motor
+        msg = State()
+        msg.header.stamp = rospy.Time.now()
+        msg.node_id = self._wheel_ids["fr"]
+        try:
+            volts_dict = self._network.getVoltage(self._wheel_ids["fr"])
+            volts = volts_dict['value']
+            msg.voltage = volts
+        except:
+            pass
+
+        try:
+            curr_dict = self._network.getMotorCurrent(self._wheel_ids["fr"])
+            curr = curr_dict['value']
+            msg.current = curr
+        except:
+            pass
+
+        try:
+            err_dict = self._network.getErrorCode(self._wheel_ids["fr"])
+            code = err_dict['value']
+            msg.error_code = code
+        except:
+            pass
+
+        self._fr_state_pub.publish(msg)
+
+        # Front left motor
+        msg = State()
+        msg.header.stamp = rospy.Time.now()
+        msg.node_id = self._wheel_ids["fl"]
+        try:
+            volts_dict = self._network.getVoltage(self._wheel_ids["fl"])
+            volts = volts_dict['value']
+            msg.voltage = volts
+        except:
+            pass
+
+        try:
+            curr_dict = self._network.getMotorCurrent(self._wheel_ids["fl"])
+            curr = curr_dict['value']
+            msg.current = curr
+        except:
+            pass
+
+        try:
+            err_dict = self._network.getErrorCode(self._wheel_ids["fl"])
+            code = err_dict['value']
+            msg.error_code = code
+        except:
+            pass
+
+        self._fl_state_pub.publish(msg)
+
+        # Back right motor
+        msg = State()
+        msg.header.stamp = rospy.Time.now()
+        msg.node_id = self._wheel_ids["br"]
+        try:
+            volts_dict = self._network.getVoltage(self._wheel_ids["br"])
+            volts = volts_dict['value']
+            msg.voltage = volts
+        except:
+            pass
+
+        try:
+            curr_dict = self._network.getMotorCurrent(self._wheel_ids["br"])
+            curr = curr_dict['value']
+            msg.current = curr
+        except:
+            pass
+
+        try:
+            err_dict = self._network.getErrorCode(self._wheel_ids["br"])
+            code = err_dict['value']
+            msg.error_code = code
+        except:
+            pass
+
+        self._br_state_pub.publish(msg)
+
+        # Back left motor
+        msg = State()
+        msg.header.stamp = rospy.Time.now()
+        msg.node_id = self._wheel_ids["bl"]
+        try:
+            volts_dict = self._network.getVoltage(self._wheel_ids["bl"])
+            volts = volts_dict['value']
+            msg.voltage = volts
+        except:
+            pass
+
+        try:
+            curr_dict = self._network.getMotorCurrent(self._wheel_ids["bl"])
+            curr = curr_dict['value']
+            msg.current = curr
+        except:
+            pass
+
+        try:
+            err_dict = self._network.getErrorCode(self._wheel_ids["bl"])
+            code = err_dict['value']
+            msg.error_code = code
+        except:
+            pass
+
+        self._bl_state_pub.publish(msg)
+
+
     def mainLoop(self):
         rate = rospy.Rate(self._loop_rate)
 
@@ -204,6 +320,9 @@ class Driver:
 
             # Publish wheel odom
             self.pubOdom()
+            # Publish Motors state
+            self.pubMotorState()
+            
             rate.sleep()
   
 
