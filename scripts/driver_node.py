@@ -48,7 +48,11 @@ class Driver:
         self._eds_file = rospy.get_param("~eds_file","")
         # self._wheel_ids = rospy.get_param("~wheel_ids", []) # TODO needs checking
         self._wheel_ids = {"fl":1, "bl":2, "br":3, "fr":4}
-        self._flip_direction = {self._wheel_ids["fl"]: -1, self._wheel_ids["bl"]: -1, self._wheel_ids["br"]: 1, self._wheel_ids["fr"]: 1}
+        self._flip_direction = {"fl": -1, "bl": -1, "br": 1, "fr": 1}
+        
+        # Stores current wheel speeds [rpm]
+        self._current_whl_rpm = {"fl": 0.0, "bl": 0.0, "br": 0.0, "fr": 0.0}
+        self._target_whl_rpm = {"fl": 0.0, "bl": 0.0, "br": 0.0, "fr": 0.0}
         
         self._wheel_radius = rospy.get_param("~wheel_radius", 0.194)
 
@@ -87,10 +91,9 @@ class Driver:
         self._odom_pub = rospy.Publisher("odom", Odometry, queue_size=10)
         self._vel_pub = rospy.Publisher("forward_vel", Float64, queue_size=10)
 
-        self._fr_state_pub = rospy.Publisher("front_right_motor/state", State, queue_size=10)
-        self._br_state_pub = rospy.Publisher("back_right_motor/state", State, queue_size=10)
-        self._fl_state_pub = rospy.Publisher("front_left_motor/state", State, queue_size=10)
-        self._bl_state_pub = rospy.Publisher("back_left_motor/state", State, queue_size=10)
+        self._motor_state_pub_dict = {}
+        for wheel in ["fl", "bl", "br", "fr"]:
+            self._motor_state_pub_dict[wheel] = rospy.Publisher(wheel+"_motor/state", State, queue_size=10)
 
         # ------------------- Services ----------------#
 
@@ -127,13 +130,17 @@ class Driver:
         # TODO convert rad/s to rpm
         wl_rpm = self.rpsToRpm(wl)
         wr_rpm = self.rpsToRpm(wr)
+        self._target_whl_rpm["fl"] = wl_rpm * self._flip_direction["fl"]
+        self._target_whl_rpm["bl"] = wl_rpm * self._flip_direction["bl"]
+        self._target_whl_rpm["br"] = wr_rpm * self._flip_direction["br"]
+        self._target_whl_rpm["fr"] = wr_rpm * self._flip_direction["fr"]
 
         # Send target velocity to the controller
         try:
-            self._network.setVelocity(node_id=self._wheel_ids["fl"], vel=wl_rpm * self._flip_direction[self._wheel_ids["fl"]])
-            self._network.setVelocity(node_id=self._wheel_ids["bl"], vel=wl_rpm * self._flip_direction[self._wheel_ids["bl"]])
-            self._network.setVelocity(node_id=self._wheel_ids["br"], vel=wr_rpm * self._flip_direction[self._wheel_ids["br"]])
-            self._network.setVelocity(node_id=self._wheel_ids["fr"], vel=wr_rpm * self._flip_direction[self._wheel_ids["fr"]])
+            self._network.setVelocity(node_id=self._wheel_ids["fl"], vel=self._target_whl_rpm["fl"])
+            self._network.setVelocity(node_id=self._wheel_ids["bl"], vel=self._target_whl_rpm["bl"])
+            self._network.setVelocity(node_id=self._wheel_ids["br"], vel=self._target_whl_rpm["br"])
+            self._network.setVelocity(node_id=self._wheel_ids["fr"], vel=self._target_whl_rpm["fr"])
         except Exception as e:
             rospy.logerr_throttle(1, "Error in setting wheel velocity: %s", e)
 
@@ -141,21 +148,12 @@ class Driver:
         """Computes & publishes odometry msg
         """
         try:
-            v_dict = self._network.getVelocity(node_id=self._wheel_ids["fl"])
-            vel = v_dict['value']* self._flip_direction[self._wheel_ids["fl"]]
-            self._diff_drive._fl_vel = self.rpmToRps(vel)
+            for t in ["fl", "bl", "br", "fr"]:
 
-            v_dict = self._network.getVelocity(node_id=self._wheel_ids["bl"])
-            vel = v_dict['value']* self._flip_direction[self._wheel_ids["bl"]]
-            self._diff_drive._bl_vel = self.rpmToRps(vel)
-
-            v_dict = self._network.getVelocity(node_id=self._wheel_ids["br"])
-            vel = v_dict['value']* self._flip_direction[self._wheel_ids["br"]]
-            self._diff_drive._br_vel = self.rpmToRps(vel)
-            
-            v_dict = self._network.getVelocity(node_id=self._wheel_ids["fr"])
-            vel = v_dict['value']* self._flip_direction[self._wheel_ids["fr"]]
-            self._diff_drive._fr_vel = self.rpmToRps(vel)
+                v_dict = self._network.getVelocity(node_id=self._wheel_ids[t])
+                vel = v_dict['value']* self._flip_direction[t]
+                self._current_whl_rpm[t] = vel
+                self._diff_drive._fl_vel = self.rpmToRps(vel)
 
             now = time()
 
@@ -192,113 +190,48 @@ class Driver:
             rospy.logerr_throttle(1, "Availabled nodes = %s", self._network._network.scanner.nodes)
 
     def pubMotorState(self):
-        # Front right motor
-        msg = State()
-        msg.header.stamp = rospy.Time.now()
-        msg.node_id = self._wheel_ids["fr"]
-        try:
-            volts_dict = self._network.getVoltage(self._wheel_ids["fr"])
-            volts = volts_dict['value']
-            msg.voltage = volts
-        except:
-            pass
+        for t in ["fl", "bl", "br", "fr"]:
+            msg = State()
+            msg.header.stamp = rospy.Time.now()
+            msg.node_id = self._wheel_ids[t]
+            
+            # Voltage
+            try:
+                volts_dict = self._network.getVoltage(self._wheel_ids[t])
+                volts = volts_dict['value']
+                msg.voltage = volts
+            except:
+                pass
 
-        try:
-            curr_dict = self._network.getMotorCurrent(self._wheel_ids["fr"])
-            curr = curr_dict['value']
-            msg.current = curr
-        except:
-            pass
+            # Motor current
+            try:
+                curr_dict = self._network.getMotorCurrent(self._wheel_ids[t])
+                curr = curr_dict['value']
+                msg.current = curr
+            except:
+                pass
 
-        try:
-            err_dict = self._network.getErrorCode(self._wheel_ids["fr"])
-            code = err_dict['value']
-            msg.error_code = code
-        except:
-            pass
+            # Error Code
+            try:
+                err_dict = self._network.getErrorCode(self._wheel_ids[t])
+                code = err_dict['value']
+                msg.error_code = code
+            except:
+                pass
 
-        self._fr_state_pub.publish(msg)
+            # Current speed, rpm
+            try:
+                msg.actual_speed = self._current_whl_rpm[t]
+            except:
+                pass
 
-        # Front left motor
-        msg = State()
-        msg.header.stamp = rospy.Time.now()
-        msg.node_id = self._wheel_ids["fl"]
-        try:
-            volts_dict = self._network.getVoltage(self._wheel_ids["fl"])
-            volts = volts_dict['value']
-            msg.voltage = volts
-        except:
-            pass
+            # Target speed, rpm
+            try:
+                msg.target_speed = self._target_whl_rpm[t]
+            except:
+                pass
 
-        try:
-            curr_dict = self._network.getMotorCurrent(self._wheel_ids["fl"])
-            curr = curr_dict['value']
-            msg.current = curr
-        except:
-            pass
-
-        try:
-            err_dict = self._network.getErrorCode(self._wheel_ids["fl"])
-            code = err_dict['value']
-            msg.error_code = code
-        except:
-            pass
-
-        self._fl_state_pub.publish(msg)
-
-        # Back right motor
-        msg = State()
-        msg.header.stamp = rospy.Time.now()
-        msg.node_id = self._wheel_ids["br"]
-        try:
-            volts_dict = self._network.getVoltage(self._wheel_ids["br"])
-            volts = volts_dict['value']
-            msg.voltage = volts
-        except:
-            pass
-
-        try:
-            curr_dict = self._network.getMotorCurrent(self._wheel_ids["br"])
-            curr = curr_dict['value']
-            msg.current = curr
-        except:
-            pass
-
-        try:
-            err_dict = self._network.getErrorCode(self._wheel_ids["br"])
-            code = err_dict['value']
-            msg.error_code = code
-        except:
-            pass
-
-        self._br_state_pub.publish(msg)
-
-        # Back left motor
-        msg = State()
-        msg.header.stamp = rospy.Time.now()
-        msg.node_id = self._wheel_ids["bl"]
-        try:
-            volts_dict = self._network.getVoltage(self._wheel_ids["bl"])
-            volts = volts_dict['value']
-            msg.voltage = volts
-        except:
-            pass
-
-        try:
-            curr_dict = self._network.getMotorCurrent(self._wheel_ids["bl"])
-            curr = curr_dict['value']
-            msg.current = curr
-        except:
-            pass
-
-        try:
-            err_dict = self._network.getErrorCode(self._wheel_ids["bl"])
-            code = err_dict['value']
-            msg.error_code = code
-        except:
-            pass
-
-        self._bl_state_pub.publish(msg)
+            self._motor_state_pub_dict[t].publish(msg)
 
 
     def mainLoop(self):
@@ -311,10 +244,8 @@ class Driver:
             if (dt > self._cmd_timeout):
                 # set zero velocity
                 try:
-                    self._network.setVelocity(node_id=self._wheel_ids["fl"], vel=0)
-                    self._network.setVelocity(node_id=self._wheel_ids["bl"], vel=0)
-                    self._network.setVelocity(node_id=self._wheel_ids["br"], vel=0)
-                    self._network.setVelocity(node_id=self._wheel_ids["fr"], vel=0)
+                    for t in ["fl", "bl", "br", "fr"]:
+                        self._network.setVelocity(node_id=self._wheel_ids[t], vel=0)
                 except Exception as e:
                     rospy.logerr_throttle(1, "[mainLoop] Error in setting wheel velocity: %s", e)
 
