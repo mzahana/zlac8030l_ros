@@ -151,8 +151,8 @@ class Driver:
             for t in ["fl", "bl", "br", "fr"]:
 
                 v_dict = self._network.getVelocity(node_id=self._wheel_ids[t])
-                vel = v_dict['value']* self._flip_direction[t]
-                self._current_whl_rpm[t] = vel
+                vel = v_dict['value']* self._flip_direction[t] # flipping is required for odom
+                self._current_whl_rpm[t] = v_dict['value']
                 self._diff_drive._fl_vel = self.rpmToRps(vel)
 
             now = time()
