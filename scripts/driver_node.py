@@ -160,15 +160,13 @@ class Driver:
         ev_d = abs(vx-current_v)
         ev_max = abs(max_v - current_v)
         if ev_d > ev_max:
-            scale_v = max_v/vx
-            v_d = vx*scale_v
+            v_d=max_v
 
         # For angular vel
         ew_d = abs(w-current_w)
         ew_max = abs(max_w - current_w)
         if ew_d > ew_max:
-            scale_w = max_w/w
-            w_d = w*scale_w
+            w_d = max_w
 
         if (abs(v_d) > self._max_vx):
             rospy.logwarn_throttle(1, "Commanded linear velocity %s is more than maximum magnitude %s", vx, self._max_vx)
