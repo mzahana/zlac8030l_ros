@@ -175,8 +175,9 @@ class Driver:
             msg.pose.pose.orientation.y = odom_quat[1]
             msg.pose.pose.orientation.z = odom_quat[2]
             msg.pose.pose.orientation.w = odom_quat[3]
-            msg.twist.twist.linear.x = odom['x_dot']
-            msg.twist.twist.linear.y = odom['y_dot']
+            # For twist, velocities are w.r.t base_link. So, only x component (forward vel) is used
+            msg.twist.twist.linear.x = odom['forward_vel']
+            msg.twist.twist.linear.y = 0 #odom['y_dot']
             msg.twist.twist.angular.z = odom['w']
             self._odom_pub.publish(msg)
             # Send TF

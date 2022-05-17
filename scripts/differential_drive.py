@@ -39,7 +39,7 @@ class DiffDrive:
     def __init__(self, wheel_radius, track_width):
         self._wheel_radius = wheel_radius
         self._track_width = track_width 
-        self._odom = {'x':0,'y':0,'yaw':0,'x_dot':0,'y_dot':0,'v':0,'w':0}
+        self._odom = {'forward_vel':0, 'x':0,'y':0,'yaw':0,'x_dot':0,'y_dot':0,'v':0,'w':0}
 
         self._fl_pos = 0 # Front left encoder position
         self._bl_pos = 0 # Back left
@@ -96,6 +96,7 @@ class DiffDrive:
         y_dot = linear_vel * sin(angular_pos)
 
         # Update odometry
+        self._odom['forward_vel']= linear_vel
         self._odom['x']= self._odom['x'] + dt* x_dot
         self._odom['y']= self._odom['y'] + dt* y_dot
         self._odom['yaw'] = angular_pos
