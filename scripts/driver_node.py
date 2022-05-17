@@ -61,6 +61,11 @@ class Driver:
         self._max_vx = rospy.get_param("~max_vx", 2.0)
         self._max_w = rospy.get_param("~max_w", 1.57)
 
+        # Max linear accelration [m/s^2] >0
+        self._max_lin_accel = rospy.get_param("~max_lin_accel", 10)
+        # Max angular accelration [rad/s^2] >0
+        self._max_ang_accel = rospy.get_param("~max_ang_accel", 15)
+
         self._odom_frame = rospy.get_param("~odom_frame", "odom_link")
         self._robot_frame = rospy.get_param("~robot_frame", "base_link")
 
@@ -109,23 +114,67 @@ class Driver:
         return rad * 9.5493
 
     def cmdVelCallback(self, msg):
-        self._last_cmd_t = time()
-
         sign_x = -1 if msg.linear.x <0 else 1
         sign_w = -1 if msg.angular.z <0 else 1
         
         vx = msg.linear.x
         w = msg.angular.z
 
-        if (abs(vx) > self._max_vx):
+        # Initialize final commanded velocities,, after applying constraitns
+        v_d = vx
+        w_d = w
+
+        # Limit velocity by acceleration
+        current_t = time()
+        dt = current_t - self._last_cmd_t
+        self._last_cmd_t = current_t
+        odom = self._diff_drive.calcRobotOdom(dt)
+        current_v = odom['forward_vel']
+        current_w = odom['w']
+
+        # Figure out the max acceleration sign
+        dv = vx-current_v
+        abs_dv = abs(dv)
+        if (abs_dv > 0):
+            lin_acc = (abs_dv/dv)*self._max_lin_accel
+        else:
+            lin_acc = self._max_lin_accel
+
+        dw = w-current_w
+        abs_dw = abs(w-current_w)
+        if (abs_dw > 0):
+            ang_acc = dw/abs_dw * self._max_ang_accel
+        else:
+            ang_acc = self._max_ang_accel
+
+        # Maximum acceptable velocity given the acceleration constraints, and current velocity
+        max_v = current_v + dt*lin_acc
+        max_w = current_w + dt*ang_acc
+
+        # Compute & compare errors to deceide whether to scale down the desired velocity
+        # For linear vel
+        ev_d = abs(vx-current_v)
+        ev_max = abs(max_v - current_v)
+        if ev_d > ev_max:
+            scale_v = max_v/vx
+            v_d = vx*scale_v
+
+        # For angular vel
+        ew_d = abs(w-current_w)
+        ew_max = abs(max_w - current_w)
+        if ew_d > ew_max:
+            scale_w = max_w/w
+            w_d = w*scale_w
+
+        if (abs(v_d) > self._max_vx):
             rospy.logwarn_throttle(1, "Commanded linear velocity %s is more than maximum magnitude %s", vx, self._max_vx)
-            vx = sign_x * self._max_vx
-        if (abs(w) > self._max_w):
+            v_d = sign_x * self._max_vx
+        if (abs(w_d) > self._max_w):
             rospy.logwarn_throttle(1, "Commanded angular velocity %s is more than maximum magnitude %s", w, self._max_w)
-            w = sign_w * self._max_w
+            w_d = sign_w * self._max_w
 
         # Compute wheels velocity commands [rad/s]
-        (wl, wr) = self._diff_drive.calcWheelVel(vx,w)
+        (wl, wr) = self._diff_drive.calcWheelVel(v_d,w_d)
 
         # TODO convert rad/s to rpm
         wl_rpm = self.rpsToRpm(wl)

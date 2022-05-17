@@ -32,6 +32,11 @@ max_vx: 2.0
 # Maximum angular velocity [rad/s]
 max_w: 1.57
 
+# Maximum linear acceleration, m/s/s
+max_lin_accel: 10
+# Maximum angular acceleration, rad/s/s
+max_ang_accel: 15
+
 odom_frame: "odom_link"
 robot_frame: "base_link"
 
