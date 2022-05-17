@@ -217,6 +217,8 @@ class Driver:
 
             time_stamp = rospy.Time.now()
             msg.header.stamp = time_stamp
+            msg.header.frame_id=self._odom_frame
+            msg.child_frame_id = self._robot_frame
 
             msg.pose.pose.position.x = odom["x"]
             msg.pose.pose.position.y = odom["y"]
@@ -226,10 +228,25 @@ class Driver:
             msg.pose.pose.orientation.y = odom_quat[1]
             msg.pose.pose.orientation.z = odom_quat[2]
             msg.pose.pose.orientation.w = odom_quat[3]
+            # pose covariance
+            msg.pose.covariance[0] = 1000.0 # x-x
+            msg.pose.covariance[7] = 1000.0 # y-y
+            msg.pose.covariance[14] = 1000.0 # z-z
+            msg.pose.covariance[21] = 1000.0 # roll
+            msg.pose.covariance[28] = 1000.0 # pitch
+            msg.pose.covariance[35] = 1000.0 # yaw
+
             # For twist, velocities are w.r.t base_link. So, only x component (forward vel) is used
             msg.twist.twist.linear.x = odom['v']
             msg.twist.twist.linear.y = 0 #odom['y_dot']
             msg.twist.twist.angular.z = odom['w']
+            msg.twist.covariance[0] = 0.1 # vx
+            msg.twist.covariance[7] = 0.1 # vx
+            msg.twist.covariance[14] = 1000.0 # vz
+            msg.twist.covariance[21] = 1000.0 # omega_x
+            msg.twist.covariance[28] = 1000.0 # omega_y
+            msg.twist.covariance[35] = 0.1 # omega_z
+            
             self._odom_pub.publish(msg)
             if self._pub_tf:
                 # Send TF
