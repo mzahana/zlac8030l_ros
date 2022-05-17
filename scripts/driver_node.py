@@ -81,6 +81,10 @@ class Driver:
         # Last time a velcoity command was received
         self._last_cmd_t = time()
 
+        # If True, odom TF will be published
+        self._pub_tf = rospy.get_param("~pub_tf", False)
+
+
         try:
             self._network = MotorController(channel=self._can_channel, bustype=self._bus_type, bitrate=self._bitrate, node_ids=None, debug=True, eds_file=self._eds_file)
         except Exception as e:
@@ -129,7 +133,7 @@ class Driver:
         dt = current_t - self._last_cmd_t
         self._last_cmd_t = current_t
         odom = self._diff_drive.calcRobotOdom(dt)
-        current_v = odom['forward_vel']
+        current_v = odom['v']
         current_w = odom['w']
 
         # Figure out the max acceleration sign
@@ -225,12 +229,13 @@ class Driver:
             msg.pose.pose.orientation.z = odom_quat[2]
             msg.pose.pose.orientation.w = odom_quat[3]
             # For twist, velocities are w.r.t base_link. So, only x component (forward vel) is used
-            msg.twist.twist.linear.x = odom['forward_vel']
+            msg.twist.twist.linear.x = odom['v']
             msg.twist.twist.linear.y = 0 #odom['y_dot']
             msg.twist.twist.angular.z = odom['w']
             self._odom_pub.publish(msg)
-            # Send TF
-            self._tf_br.sendTransform((odom['x'],odom['y'],0),odom_quat,time_stamp,self._robot_frame,self._odom_frame)
+            if self._pub_tf:
+                # Send TF
+                self._tf_br.sendTransform((odom['x'],odom['y'],0),odom_quat,time_stamp,self._robot_frame,self._odom_frame)
 
             msg = Float64()
             msg.data = odom["v"] # Forward velocity

@@ -3,6 +3,9 @@
 # ROS loop rate [Hz]
 loop_rate: 100.0
 
+# True:publish tf
+pub_tf: False
+
 # CAN bus interface, e.g. can0, can1
 can_channel: "can0"
 
