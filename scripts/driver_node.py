@@ -204,10 +204,17 @@ class Driver:
                 v_dict = self._network.getVelocity(node_id=self._wheel_ids[t])
                 vel = v_dict['value']* self._flip_direction[t] # flipping is required for odom
                 self._current_whl_rpm[t] = v_dict['value']
-                self._diff_drive._fl_vel = self.rpmToRps(vel)
-        except :
-            rospy.logerr_throttle(1, "Error in pubOdom: check if all 4 motors are connected")
-            rospy.logerr_throttle(1, "Availabled nodes = %s", self._network._network.scanner.nodes)
+                if t=="fl":
+                    self._diff_drive._fl_vel = self.rpmToRps(vel)
+                if t=="fr":
+                    self._diff_drive._fr_vel = self.rpmToRps(vel)
+                if t=="bl":
+                    self._diff_drive._bl_vel = self.rpmToRps(vel)
+                if t=="br":
+                    self._diff_drive._br_vel = self.rpmToRps(vel)
+        except Exception as e :
+            rospy.logerr_throttle(1, "Error in pubOdom: %s. Check driver connection", e)
+            #rospy.logerr_throttle(1, "Availabled nodes = %s", self._network._network.scanner.nodes)
 
         now = time()
 

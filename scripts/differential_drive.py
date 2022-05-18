@@ -44,8 +44,8 @@ class DiffDrive:
         self._fl_pos = 0 # Front left encoder position
         self._bl_pos = 0 # Back left
         self._br_pos = 0 # Back right
-        self._fr_pos = 0 # Front rights
-        self._fl_vel = 0 # Front wheel angular velocity in rad/s
+        self._fr_pos = 0 # Front right
+        self._fl_vel = 0 # Front left wheel angular velocity in rad/s
         self._bl_vel = 0 
         self._br_vel = 0
         self._fr_vel = 0
