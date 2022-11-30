@@ -3,16 +3,24 @@
         Bring up teleop using Logitech joystick
      -->
      <arg  name="joy_yaml" default="$(env JOYSTICK_YAML)"/>
-     <arg  name="teleop_yaml" default="$(env TELEOP_YAML)"/>
+     <arg  name="teleop_joy_yaml" default="$(env TELEOP_JOY_YAML)"/>
+     <arg  name="teleop_keyboard_yaml" default="$(env TELEOP_KEYBOARD_YAML)"/>
      <arg  name="enable_joy" default="true"/>
-     <arg  name="enable_teleop" default="true"/>
+     <arg  name="enable_teleop_joy" default="true"/>
+     <arg  name="enable_teleop_keyboard" default="true"/>
+     <arg  name="cmd_vel_topic" default="cmd_vel"/>
      
      <node if="$(arg enable_joy)" pkg="joy" type="joy_node" name="joy_node" >
         <rosparam command="load" file="$(arg joy_yaml)"/>
      </node>
 
-    <node if="$(arg enable_teleop)" pkg="teleop_twist_joy" type="teleop_node" name="teleop_twist_joy">
-        <rosparam command="load" file="$(find zlac8030l_ros)/config/teleop.yaml"/>
+    <node if="$(arg enable_teleop_joy)" pkg="teleop_twist_joy" type="teleop_node" name="teleop_twist_joy">
+        <rosparam command="load" file="$(arg teleop_joy_yaml)"/>
     </node>
+
+    <node if="$(arg enable_teleop_keyboard)" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" name="teleop_twist_keyboard">
+        <rosparam command="load" file="$(arg teleop_keyboard_yaml)"/>
+    </node>
+    <remap from="cmd_vel" to="$(arg cmd_vel_topic)" />
 
 </launch>
