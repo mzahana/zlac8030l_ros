@@ -38,6 +38,7 @@ from std_msgs.msg import Float64
 from nav_msgs.msg import Odometry
 from ZLAC8030L_CAN_controller.canopen_controller import MotorController
 from differential_drive import DiffDrive
+from pid import PID
 from zlac8030l_ros.msg import State
 
 class Driver:
@@ -49,10 +50,18 @@ class Driver:
         # self._wheel_ids = rospy.get_param("~wheel_ids", []) # TODO needs checking
         self._wheel_ids = {"fl":1, "bl":2, "br":3, "fr":4}
         self._flip_direction = {"fl": -1, "bl": -1, "br": 1, "fr": 1}
+
+        # Velocity vs. Troque modes
+        self._torque_mode = rospy.get_param("~torque_mode", False)
+
+        # Create PIDs, one for each wheel
+        self._vel_pids = {"fl":PID(kp=100, ki=50), "bl":PID(kp=100, ki=50), "br":PID(kp=100, ki=50), "fr":PID(kp=100, ki=50)}
+
         
         # Stores current wheel speeds [rpm]
         self._current_whl_rpm = {"fl": 0.0, "bl": 0.0, "br": 0.0, "fr": 0.0}
         self._target_whl_rpm = {"fl": 0.0, "bl": 0.0, "br": 0.0, "fr": 0.0}
+        self._target_torque = {"fl": 0.0, "bl": 0.0, "br": 0.0, "fr": 0.0}
         
         self._wheel_radius = rospy.get_param("~wheel_radius", 0.194)
 
@@ -186,14 +195,37 @@ class Driver:
         self._target_whl_rpm["br"] = wr_rpm * self._flip_direction["br"]
         self._target_whl_rpm["fr"] = wr_rpm * self._flip_direction["fr"]
 
-        # Send target velocity to the controller
+        # Apply PIDs
         try:
-            self._network.setVelocity(node_id=self._wheel_ids["fl"], vel=self._target_whl_rpm["fl"])
-            self._network.setVelocity(node_id=self._wheel_ids["bl"], vel=self._target_whl_rpm["bl"])
-            self._network.setVelocity(node_id=self._wheel_ids["br"], vel=self._target_whl_rpm["br"])
-            self._network.setVelocity(node_id=self._wheel_ids["fr"], vel=self._target_whl_rpm["fr"])
+            err_rpm = {"fr":0, "fl":0, "br":0, "bl":0}
+            for t in ["fl", "bl", "br", "fr"]:
+                v_dict = self._network.getVelocity(node_id=self._wheel_ids[t])
+                vel = v_dict['value']* self._flip_direction[t] # flipping is required for odom
+                self._current_whl_rpm[t] = v_dict['value']
+
+                err_rpm[t] = self._target_whl_rpm[t] - self._current_whl_rpm[t]
+                self._target_torque[t] = self._vel_pids["fr"].update(err_rpm[t])
+
         except Exception as e:
-            rospy.logerr_throttle(1, "Error in setting wheel velocity: %s", e)
+            rospy.logerr_throttle(1, "[cmdVelCallback] Error in getting wheel velocity: %s. Check driver connection", e)
+
+
+
+        if (self._torque_mode):
+            try:
+                for t in ["fl", "bl", "br", "fr"]:
+                    self._network.setTorque( node_id=self._wheel_ids[t], current_mA=self._target_torque[t])
+            except Exception as e:
+                rospy.logerr_throttle(1, "Error in setting wheel torque: %s", e)
+        else:
+            # Send target velocity to the controller
+            try:
+                self._network.setVelocity(node_id=self._wheel_ids["fl"], vel=self._target_whl_rpm["fl"])
+                self._network.setVelocity(node_id=self._wheel_ids["bl"], vel=self._target_whl_rpm["bl"])
+                self._network.setVelocity(node_id=self._wheel_ids["br"], vel=self._target_whl_rpm["br"])
+                self._network.setVelocity(node_id=self._wheel_ids["fr"], vel=self._target_whl_rpm["fr"])
+            except Exception as e:
+                rospy.logerr_throttle(1, "Error in setting wheel velocity: %s", e)
 
     def pubOdom(self):
         """Computes & publishes odometry msg
@@ -213,7 +245,7 @@ class Driver:
                 if t=="br":
                     self._diff_drive._br_vel = self.rpmToRps(vel)
         except Exception as e :
-            rospy.logerr_throttle(1, "Error in pubOdom: %s. Check driver connection", e)
+            rospy.logerr_throttle(1, " Error in pubOdom: %s. Check driver connection", e)
             #rospy.logerr_throttle(1, "Availabled nodes = %s", self._network._network.scanner.nodes)
 
         now = time()
