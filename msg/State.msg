@@ -6,6 +6,9 @@ int16 node_id
 # Battery voltage read by the driver [V]
 float32 voltage
 
+# Electric target current [mA]
+float64 target_current_mA
+
 # Motor current [A]
 float32 current
 
