@@ -38,6 +38,7 @@ from std_msgs.msg import Float64
 from nav_msgs.msg import Odometry
 from ZLAC8030L_CAN_controller.canopen_controller import MotorController
 from differential_drive import DiffDrive
+from pid import PID
 from zlac8030l_ros.msg import State
 
 class Driver:
@@ -49,10 +50,23 @@ class Driver:
         # self._wheel_ids = rospy.get_param("~wheel_ids", []) # TODO needs checking
         self._wheel_ids = {"fl":1, "bl":2, "br":3, "fr":4}
         self._flip_direction = {"fl": -1, "bl": -1, "br": 1, "fr": 1}
+
+        # Velocity vs. Troque modes
+        self._torque_mode = rospy.get_param("~torque_mode", False)
+
+        self._kp = rospy.get_param("~vel_kp", 200)
+        self._ki = rospy.get_param("~vel_ki", 10)
+        self._kd = rospy.get_param("~vel_kd", 0)
+        # Create PIDs, one for each wheel
+        self._vel_pids = {"fl":PID(kp=self._kp, ki=self._ki, kd=self._kd), "bl":PID(kp=self._kp, ki=self._ki, kd=self._kd), "br":PID(kp=self._kp, ki=self._ki, kd=self._kd), "fr":PID(kp=self._kp, ki=self._ki, kd=self._kd)}
+
         
         # Stores current wheel speeds [rpm]
         self._current_whl_rpm = {"fl": 0.0, "bl": 0.0, "br": 0.0, "fr": 0.0}
+        # Target RPM
         self._target_whl_rpm = {"fl": 0.0, "bl": 0.0, "br": 0.0, "fr": 0.0}
+        # Target torque; when slef._control_mode="torque"
+        self._target_current = {"fl": 0.0, "bl": 0.0, "br": 0.0, "fr": 0.0}
         
         self._wheel_radius = rospy.get_param("~wheel_radius", 0.194)
 
@@ -86,7 +100,11 @@ class Driver:
 
 
         try:
-            self._network = MotorController(channel=self._can_channel, bustype=self._bus_type, bitrate=self._bitrate, node_ids=None, debug=True, eds_file=self._eds_file)
+            if (self._torque_mode):
+                mode='torque'
+            else:
+                 mode='velocity'   
+            self._network = MotorController(channel=self._can_channel, bustype=self._bus_type, bitrate=self._bitrate, node_ids=None, debug=True, eds_file=self._eds_file, mode=mode)
         except Exception as e:
             rospy.logerr("Could not create CAN network object. Error: %s", e)
             exit(0)
@@ -117,6 +135,42 @@ class Driver:
     def rpsToRpm(self, rad):
         return rad * 9.5493
 
+    def applyControls(self):
+        """
+        Computes and applyies control signals based on the control mode (velocity vs. torque)
+        """
+        if (self._torque_mode):
+            try:
+                err_rpm = {"fr":0, "fl":0, "br":0, "bl":0}
+                for t in ["fl", "bl", "br", "fr"]:
+                    v_dict = self._network.getVelocity(node_id=self._wheel_ids[t])
+                    vel = v_dict['value']* self._flip_direction[t] # flipping is required for odom
+                    self._current_whl_rpm[t] = v_dict['value']
+
+                    err_rpm[t] = self._target_whl_rpm[t] - self._current_whl_rpm[t]
+                    self._target_current[t] = self._vel_pids["fr"].update(err_rpm[t])
+
+            except Exception as e:
+                rospy.logerr_throttle(1, "[applyControls] Error in getting wheel velocity: %s. Check driver connection", e)
+
+        
+        
+            try:
+                for t in ["fl", "bl", "br", "fr"]:
+                    self._network.setTorque( node_id=self._wheel_ids[t], current_mA=self._target_current[t])
+            except Exception as e:
+                rospy.logerr_throttle(1, "[applyControls] Error in setting wheel torque: %s", e)
+        else:
+            # Send target velocity to the controller
+            try:
+                for t in ["fl", "bl", "br", "fr"]:
+                    self._network.setVelocity(node_id=self._wheel_ids[t], vel=self._target_whl_rpm[t])
+                
+            except Exception as e:
+                rospy.logerr_throttle(1, "[applyControls] Error in setting wheel velocity: %s", e)
+
+
+    
     def cmdVelCallback(self, msg):
         sign_x = -1 if msg.linear.x <0 else 1
         sign_w = -1 if msg.angular.z <0 else 1
@@ -169,10 +223,10 @@ class Driver:
             w_d = max_w
 
         if (abs(v_d) > self._max_vx):
-            rospy.logwarn_throttle(1, "Commanded linear velocity %s is more than maximum magnitude %s", vx, self._max_vx)
+            rospy.logwarn_throttle(1, "Commanded linear velocity %s is more than maximum magnitude %s", sign_x*vx, sign_x*self._max_vx)
             v_d = sign_x * self._max_vx
         if (abs(w_d) > self._max_w):
-            rospy.logwarn_throttle(1, "Commanded angular velocity %s is more than maximum magnitude %s", w, self._max_w)
+            rospy.logwarn_throttle(1, "Commanded angular velocity %s is more than maximum magnitude %s", sign_w*w, sign_w*self._max_w)
             w_d = sign_w * self._max_w
 
         # Compute wheels velocity commands [rad/s]
@@ -186,14 +240,10 @@ class Driver:
         self._target_whl_rpm["br"] = wr_rpm * self._flip_direction["br"]
         self._target_whl_rpm["fr"] = wr_rpm * self._flip_direction["fr"]
 
-        # Send target velocity to the controller
-        try:
-            self._network.setVelocity(node_id=self._wheel_ids["fl"], vel=self._target_whl_rpm["fl"])
-            self._network.setVelocity(node_id=self._wheel_ids["bl"], vel=self._target_whl_rpm["bl"])
-            self._network.setVelocity(node_id=self._wheel_ids["br"], vel=self._target_whl_rpm["br"])
-            self._network.setVelocity(node_id=self._wheel_ids["fr"], vel=self._target_whl_rpm["fr"])
-        except Exception as e:
-            rospy.logerr_throttle(1, "Error in setting wheel velocity: %s", e)
+        # Apply control in the main loop
+        
+
+        
 
     def pubOdom(self):
         """Computes & publishes odometry msg
@@ -213,7 +263,7 @@ class Driver:
                 if t=="br":
                     self._diff_drive._br_vel = self.rpmToRps(vel)
         except Exception as e :
-            rospy.logerr_throttle(1, "Error in pubOdom: %s. Check driver connection", e)
+            rospy.logerr_throttle(1, " Error in pubOdom: %s. Check driver connection", e)
             #rospy.logerr_throttle(1, "Availabled nodes = %s", self._network._network.scanner.nodes)
 
         now = time()
@@ -280,6 +330,11 @@ class Driver:
             except:
                 pass
 
+            # Target current in mA
+            msg.target_current_mA = self._target_current[t]
+            # Target current in A
+            msg.target_current_A = self._target_current[t]/1000.0
+            
             # Motor current
             try:
                 curr_dict = self._network.getMotorCurrent(self._wheel_ids[t])
@@ -320,11 +375,11 @@ class Driver:
             dt = now - self._last_cmd_t
             if (dt > self._cmd_timeout):
                 # set zero velocity
-                try:
-                    for t in ["fl", "bl", "br", "fr"]:
-                        self._network.setVelocity(node_id=self._wheel_ids[t], vel=0)
-                except Exception as e:
-                    rospy.logerr_throttle(1, "[mainLoop] Error in setting wheel velocity: %s", e)
+                for t in ["fl", "bl", "br", "fr"]:
+                    self._target_whl_rpm[t]=0.0
+
+            # Apply controls
+            self.applyControls()
 
             # Publish wheel odom
             self.pubOdom()

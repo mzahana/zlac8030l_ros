@@ -16,6 +16,9 @@ bitrate: 500000
 
 eds_file: "/root/shared_volume/catkin_ws/src/zlac8030l_ros/config/eds/ZLAC8030L-V1.0.eds"
 
+# If True torque-based velocity controller is used. Otherwise, velocity setpoints are going to be directly sent
+torque_mode: False
+
 # Wheel radius [meters]
 wheel_radius: 0.194
 
