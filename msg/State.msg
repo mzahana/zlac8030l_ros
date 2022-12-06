@@ -9,6 +9,9 @@ float32 voltage
 # Electric target current [mA]
 float64 target_current_mA
 
+# Electric target current [A]
+float64 target_current_A
+
 # Motor current [A]
 float32 current
 

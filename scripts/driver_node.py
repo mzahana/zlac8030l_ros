@@ -332,6 +332,8 @@ class Driver:
 
             # Target current in mA
             msg.target_current_mA = self._target_current[t]
+            # Target current in A
+            msg.target_current_A = self._target_current[t]/1000.0
             
             # Motor current
             try:
