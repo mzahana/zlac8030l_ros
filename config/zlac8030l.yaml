@@ -20,6 +20,9 @@ eds_file: "/root/shared_volume/catkin_ws/src/zlac8030l_ros/config/eds/ZLAC8030L-
 diff_mode: "2wheel"
 # If True torque-based velocity controller is used. Otherwise, velocity setpoints are going to be directly sent
 torque_mode: False
+vel_kp: 300
+vel_ki: 100
+vel_kd: 0
 
 # Wheel radius [meters]
 wheel_radius: 0.194
