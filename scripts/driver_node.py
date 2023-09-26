@@ -47,6 +47,11 @@ class Driver:
         self._bus_type = rospy.get_param("~bus_type", "socketcan")
         self._bitrate = rospy.get_param("~bitrate", 500000)
         self._eds_file = rospy.get_param("~eds_file","")
+        self._diff_mode = rospy.get_param("~diff_mode","2wheel") # '2wheel', '4wheel'
+        if(self._diff_mode == '2wheel'):
+            rospy.loginfo("Using 2-wheel differential mode.")
+        else:
+            rospy.loginfo("Using 4-wheel differential mode.")
         # self._wheel_ids = rospy.get_param("~wheel_ids", []) # TODO needs checking
         self._wheel_ids = {"fl":1, "bl":2, "br":3, "fr":4}
         self._flip_direction = {"fl": -1, "bl": -1, "br": 1, "fr": 1}
@@ -119,7 +124,11 @@ class Driver:
         self._vel_pub = rospy.Publisher("forward_vel", Float64, queue_size=10)
 
         self._motor_state_pub_dict = {}
-        for wheel in ["fl", "bl", "br", "fr"]:
+        T = ["fl", "bl", "br", "fr"]
+        if(self._diff_mode == '2wheel'):
+            T = ["fl", "fr"]
+            
+        for wheel in T:
             self._motor_state_pub_dict[wheel] = rospy.Publisher(wheel+"_motor/state", State, queue_size=10)
 
         # ------------------- Services ----------------#
@@ -139,10 +148,15 @@ class Driver:
         """
         Computes and applyies control signals based on the control mode (velocity vs. torque)
         """
+
+        T = ["fl", "bl", "br", "fr"]
+        if(self._diff_mode == '2wheel'):
+            T = ["fl", "fr"]
+            
         if (self._torque_mode):
             try:
                 err_rpm = {"fr":0, "fl":0, "br":0, "bl":0}
-                for t in ["fl", "bl", "br", "fr"]:
+                for t in T:
                     v_dict = self._network.getVelocity(node_id=self._wheel_ids[t])
                     vel = v_dict['value']* self._flip_direction[t] # flipping is required for odom
                     self._current_whl_rpm[t] = v_dict['value']
@@ -156,14 +170,14 @@ class Driver:
         
         
             try:
-                for t in ["fl", "bl", "br", "fr"]:
+                for t in T:
                     self._network.setTorque( node_id=self._wheel_ids[t], current_mA=self._target_current[t])
             except Exception as e:
                 rospy.logerr_throttle(1, "[applyControls] Error in setting wheel torque: %s", e)
         else:
             # Send target velocity to the controller
             try:
-                for t in ["fl", "bl", "br", "fr"]:
+                for t in T:
                     self._network.setVelocity(node_id=self._wheel_ids[t], vel=self._target_whl_rpm[t])
                 
             except Exception as e:
@@ -248,8 +262,12 @@ class Driver:
     def pubOdom(self):
         """Computes & publishes odometry msg
         """
+        T = ["fl", "bl", "br", "fr"]
+        if(self._diff_mode == '2wheel'):
+            T = ["fl", "fr"]
+
         try:
-            for t in ["fl", "bl", "br", "fr"]:
+            for t in T:
 
                 v_dict = self._network.getVelocity(node_id=self._wheel_ids[t])
                 vel = v_dict['value']* self._flip_direction[t] # flipping is required for odom
@@ -262,6 +280,10 @@ class Driver:
                     self._diff_drive._bl_vel = self.rpmToRps(vel)
                 if t=="br":
                     self._diff_drive._br_vel = self.rpmToRps(vel)
+
+                if(self._diff_mode == '2wheel'):
+                    self._diff_drive._bl_vel = self._diff_drive._fl_vel
+                    self._diff_drive._br_vel = self._diff_drive._fr_vel
         except Exception as e :
             rospy.logerr_throttle(1, " Error in pubOdom: %s. Check driver connection", e)
             #rospy.logerr_throttle(1, "Availabled nodes = %s", self._network._network.scanner.nodes)
@@ -317,7 +339,11 @@ class Driver:
         self._vel_pub.publish(msg)
 
     def pubMotorState(self):
-        for t in ["fl", "bl", "br", "fr"]:
+        T = ["fl", "bl", "br", "fr"]
+        if(self._diff_mode == '2wheel'):
+            T = ["fl", "fr"]
+
+        for t in T:
             msg = State()
             msg.header.stamp = rospy.Time.now()
             msg.node_id = self._wheel_ids[t]
@@ -375,7 +401,11 @@ class Driver:
             dt = now - self._last_cmd_t
             if (dt > self._cmd_timeout):
                 # set zero velocity
-                for t in ["fl", "bl", "br", "fr"]:
+                T = ["fl", "bl", "br", "fr"]
+                if(self._diff_mode == '2wheel'):
+                    T = ["fl", "fr"]
+
+                for t in T:
                     self._target_whl_rpm[t]=0.0
 
             # Apply controls
